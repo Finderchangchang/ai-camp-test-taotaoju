@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>早茶聚餐预算助手｜陶陶居</title>
+<style>
+  :root { --main: #e85d75; --main-soft: #fdecef; --text: #1f2937; --muted: #6b7280; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--text); background: var(--main-soft); min-height: 100vh; display: flex; justify-content: center; padding: 20px 14px; }
+  .app { width: 100%; max-width: 440px; background: #fff; border-radius: 20px; padding: 26px 22px; box-shadow: 0 8px 30px rgba(0,0,0,.06); }
+  .brand { font-size: 13px; color: var(--muted); }
+  h1 { font-size: 24px; margin: 6px 0 6px; }
+  .lead { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+  .progress { height: 6px; background: #f1f1f1; border-radius: 99px; margin-bottom: 18px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--main); transition: width .3s; }
+  .q { font-weight: 600; margin-bottom: 12px; font-size: 17px; }
+  .opt { display: block; width: 100%; text-align: left; padding: 13px 14px; margin-bottom: 10px; border: 1.5px solid #e5e7eb; border-radius: 12px; background: #fff; font-size: 15px; cursor: pointer; }
+  .opt:hover, .opt.on { border-color: var(--main); background: var(--main-soft); }
+  input.field { width: 100%; padding: 13px 14px; border: 1.5px solid #e5e7eb; border-radius: 12px; font-size: 15px; margin-bottom: 12px; }
+  .btn { display: block; width: 100%; text-align: center; padding: 14px; border-radius: 999px; border: none; background: var(--main); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  .btn.ghost { background: #fff; color: var(--main); border: 1.5px solid var(--main); margin-top: 10px; }
+  .result h2 { font-size: 22px; margin-bottom: 8px; color: var(--main); }
+  .result p { color: #374151; line-height: 1.75; margin-bottom: 12px; }
+  .result img { width: 100%; border-radius: 14px; margin-bottom: 12px; }
+  .tip { font-size: 12px; color: var(--muted); margin: 10px 0 16px; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="brand">陶陶居</div>
+  <h1>早茶聚餐预算助手</h1>
+  <p class="lead">选好人数和场合，马上看看适合早茶套餐还是包间，以及大概预算。</p>
+
+  <div id="quiz">
+    <div class="progress"><i id="bar"></i></div>
+    <div id="step"></div>
+  </div>
+
+  <div id="result" class="result hide">
+    <img id="r-img" class="hide" alt="陶陶居早茶点心">
+    <h2 id="r-title"></h2>
+    <p id="r-text"></p>
+    <p id="r-rec"></p>
+    <p class="tip">以上为参考预算，以门店实际安排和消费为准；提交需求不代表一定有位或一定能订到包间。</p>
+    <a class="btn" id="cta" href="https://congmingpay.feishu.cn/share/base/shrcn1IeBPfafR4McVxznSlMPue" target="_blank" rel="noopener">留电话订位 / 预约包间</a>
+    <button class="btn ghost" onclick="restart()">重新测一次</button>
+  </div>
+</div>
+
+<script>
+// ===== 第 1 处要改：输入题目（≤5 项）。type: "choice" 单选 / "input" 填空 =====
+const QUESTIONS = [
+  { id: "people", type: "choice", title: "一共多少人？", options: ["1–2 人", "3–4 人", "5–7 人", "8–12 人", "13 人以上"] },
+  { id: "occasion", type: "choice", title: "这次是什么场合？", options: ["来广州喝早茶", "家人朋友聚餐", "商务宴请", "生日或纪念日"] },
+  { id: "room", type: "choice", title: "想订包间吗？", options: ["想订", "不需要", "还不确定"] },
+  { id: "when", type: "choice", title: "计划什么时候来？", options: ["工作日", "周末", "节假日", "时间未定"] }
+];
+
+// ===== 第 2 处要改：结果规则。answers 形如 { people: "1–2 人", occasion: "来广州喝早茶" } =====
+// 必须返回 { title, text, rec, img }；img 没有就填 ""。价格只能用企业档案里的。
+function computeResult(answers) {
+  const counts = {
+    "1–2 人": { max: 2, sets: 1, total: 168 },
+    "3–4 人": { max: 4, sets: 2, total: 336 },
+    "5–7 人": { max: 7, sets: 4, total: 672 }
+  };
+  let timing = "";
+  if (answers.when === "周末") timing = "周末高峰建议提前预约或错峰。";
+  if (answers.when === "节假日") timing = "节假日营业安排尚未确认，建议先电话确认。";
+
+  if (answers.people === "13 人以上") {
+    return {
+      title: "为你推荐：先让门店确认",
+      text: `现有资料没有 13 人以上对应的套餐或包间价格，需要门店按人数和场合确认。${timing}`,
+      rec: "建议：留下人数、日期和需求，由门店确认座位、菜单与实际费用。",
+      img: ""
+    };
+  }
+
+  if (answers.people === "8–12 人") {
+    const special = answers.occasion === "商务宴请" || answers.occasion === "生日或纪念日";
+    if (answers.room === "想订" || special) {
+      return {
+        title: "为你推荐：包间预订",
+        text: `8–12 人适合咨询包间，最低消费 800 元，人均最低参考约 67–100 元。需提前 1 天电话预约。${timing}`,
+        rec: "推荐：包间预订。以上为参考预算，以门店实际安排和消费为准。",
+        img: ""
+      };
+    }
+    return {
+      title: "为你推荐：套餐与包间都比较一下",
+      text: `8–12 人按 2 人早茶套餐组合估算，参考预算为 672–1008 元；如改订包间，最低消费为 800 元，需提前 1 天电话预约。${timing}`,
+      rec: "建议：按场合选择，并留下电话确认座位和实际菜单。以上为参考预算，以门店实际安排和消费为准。",
+      img: "../官网/img/morning-tea.png"
+    };
+  }
+
+  const group = counts[answers.people];
+  if (answers.room === "想订") {
+    return {
+      title: "为你推荐：先确认包间安排",
+      text: `${answers.people}可先咨询包间。现有包间资料适用于 8–12 人，最低消费 800 元，需提前 1 天电话预约；你的人数是否适用要由门店确认。${timing}`,
+      rec: "备选：招牌早茶套餐（2 人）按人数组合，参考预算 " + group.total + " 元。以上为参考预算，以门店实际安排和消费为准。",
+      img: "../官网/img/morning-tea.png"
+    };
+  }
+
+  return {
+    title: "为你推荐：招牌早茶套餐",
+    text: `${answers.people}按每 2 人一套、人数除以 2 后向上取整估算，需要 ${group.sets} 套，参考预算 ${group.total} 元。现有资料只有 2 人套餐价，这是按套餐组合得出的参考预算。${timing}`,
+    rec: "推荐：招牌早茶套餐（2 人），每套 168 元。以上为参考预算，以门店实际安排和消费为准。",
+    img: "../官网/img/morning-tea.png"
+  };
+}
+// ===== 以下不用改 =====
+let i = 0; const answers = {};
+const stepEl = document.getElementById("step");
+function render() {
+  document.getElementById("bar").style.width = (i / QUESTIONS.length * 100) + "%";
+  const q = QUESTIONS[i];
+  if (q.type === "choice") {
+    stepEl.innerHTML = `<div class="q">${q.title}</div>` +
+      q.options.map(o => `<button class="opt" data-v="${o}">${o}</button>`).join("");
+    stepEl.querySelectorAll(".opt").forEach(b => b.onclick = () => { answers[q.id] = b.dataset.v; next(); });
+  } else {
+    stepEl.innerHTML = `<div class="q">${q.title}</div><input class="field" id="inp" placeholder="${q.placeholder || ""}"><button class="btn" id="go">下一步</button>`;
+    document.getElementById("go").onclick = () => { answers[q.id] = document.getElementById("inp").value.trim(); next(); };
+  }
+}
+function next() { i++; if (i < QUESTIONS.length) render(); else show(); }
+function show() {
+  const r = computeResult(answers);
+  document.getElementById("quiz").classList.add("hide");
+  document.getElementById("result").classList.remove("hide");
+  document.getElementById("r-title").textContent = r.title;
+  document.getElementById("r-text").textContent = r.text;
+  document.getElementById("r-rec").textContent = r.rec || "";
+  const img = document.getElementById("r-img");
+  if (r.img) { img.src = r.img; img.classList.remove("hide"); } else { img.classList.add("hide"); }
+}
+function restart() { i = 0; for (const k in answers) delete answers[k];
+  document.getElementById("quiz").classList.remove("hide"); document.getElementById("result").classList.add("hide"); render(); }
+render();
+</script>
+</body>
+</html>
